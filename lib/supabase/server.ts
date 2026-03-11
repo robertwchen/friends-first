@@ -1,12 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
+import { hasSupabaseServerEnv } from "@/lib/env";
 
 export function createServerSupabaseClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !serviceRoleKey) {
+  if (!hasSupabaseServerEnv()) {
     throw new Error("Missing Supabase server environment variables.");
   }
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
   return createClient(url, serviceRoleKey, {
     auth: {
@@ -15,4 +16,3 @@ export function createServerSupabaseClient() {
     }
   });
 }
-

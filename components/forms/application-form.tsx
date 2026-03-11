@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { CheckCircle2 } from "lucide-react";
@@ -21,6 +22,11 @@ const stepFields: Array<Array<keyof ApplicationValues>> = [
 export function ApplicationForm() {
   const [step, setStep] = useState(1);
   const [submitted, setSubmitted] = useState(false);
+  const [submissionMode, setSubmissionMode] = useState<"live" | "mock">("mock");
+  const [serverMessage, setServerMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const router = useRouter();
 
   const form = useForm<ApplicationValues>({
     resolver: zodResolver(applicationSchema),
@@ -49,9 +55,38 @@ export function ApplicationForm() {
 
   const prevStep = () => setStep((current) => Math.max(current - 1, 1));
 
-  const onSubmit = (values: ApplicationValues) => {
-    setSubmitted(true);
-    form.reset(values);
+  const onSubmit = async (values: ApplicationValues) => {
+    setSubmitting(true);
+    setSubmitError("");
+
+    try {
+      const response = await fetch("/api/applications", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(values)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message ?? "Application submission failed.");
+      }
+
+      setSubmissionMode(data.status === "saved" ? "live" : "mock");
+      setServerMessage(data.message ?? "Application received.");
+      setSubmitted(true);
+      form.reset(values);
+
+      window.setTimeout(() => {
+        router.push("/pending");
+      }, 900);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Application submission failed.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (submitted) {
@@ -61,10 +96,12 @@ export function ApplicationForm() {
           <CheckCircle2 className="h-10 w-10 text-primary" />
           <h2 className="mt-5 font-display text-3xl">Application submitted</h2>
           <p className="mt-3 text-base leading-7 text-muted-foreground">
-            This MVP keeps submissions client-side for demo purposes. In production, post this payload to a shared backend service or Supabase edge function.
+            {submissionMode === "live"
+              ? "Your application was saved to Supabase and routed into the pending review flow."
+              : "The request path is wired, but Supabase environment variables are missing here, so this submission stayed in demo mode."}
           </p>
           <div className="mt-6 rounded-[1.5rem] bg-background/80 p-5 text-sm text-muted-foreground">
-            Expected next step: route the applicant to `/pending`, enqueue a selection review, and create a Stripe setup or reservation hold.
+            {serverMessage || "Next step: route the applicant to `/pending`, enqueue selection review, and create a Stripe reservation hold."}
           </div>
         </CardContent>
       </Card>
@@ -144,17 +181,20 @@ export function ApplicationForm() {
           ) : null}
 
           <div className="flex flex-wrap gap-3">
+            {submitError ? <p className="w-full text-sm text-primary">{submitError}</p> : null}
             {step > 1 ? (
-              <Button type="button" variant="outline" onClick={prevStep}>
+              <Button type="button" variant="outline" onClick={prevStep} disabled={submitting}>
                 Back
               </Button>
             ) : null}
             {step < 3 ? (
-              <Button type="button" onClick={nextStep}>
+              <Button type="button" onClick={nextStep} disabled={submitting}>
                 Continue
               </Button>
             ) : (
-              <Button type="submit">Submit application</Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Submitting..." : "Submit application"}
+              </Button>
             )}
           </div>
         </form>
@@ -180,4 +220,3 @@ function Field({
     </div>
   );
 }
-

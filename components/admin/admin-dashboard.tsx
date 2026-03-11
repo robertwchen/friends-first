@@ -1,13 +1,15 @@
-import { adminApplications, events, matchQueue } from "@/lib/mock-data";
+import { AdminDashboardData } from "@/lib/server/admin-data";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export function AdminDashboard() {
+export function AdminDashboard({ source, events, applications, matchQueue }: AdminDashboardData) {
   return (
     <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
       <Card className="bg-[#201914] text-white">
         <CardHeader>
-          <Badge className="border-white/20 bg-white/10 text-white">Mock auth enabled</Badge>
+          <Badge className="border-white/20 bg-white/10 text-white">
+            {source === "supabase" ? "Supabase live data" : "Mock auth + mock data"}
+          </Badge>
           <CardTitle className="font-display text-3xl">Ops checklist</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-white/75">
@@ -41,7 +43,7 @@ export function AdminDashboard() {
             <CardTitle className="font-display text-2xl">Application queue</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {adminApplications.map((application) => (
+            {applications.map((application) => (
               <div key={application.id} className="flex flex-col gap-2 rounded-[1.5rem] bg-background/80 p-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="font-medium">{application.name}</p>

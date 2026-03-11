@@ -13,6 +13,10 @@ import { Textarea } from "@/components/ui/textarea";
 
 export function ConnectionForm() {
   const [submitted, setSubmitted] = useState(false);
+  const [submissionMode, setSubmissionMode] = useState<"live" | "mock">("mock");
+  const [serverMessage, setServerMessage] = useState("");
+  const [submitError, setSubmitError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const form = useForm<ConnectionValues>({
     resolver: zodResolver(connectionSchema),
     defaultValues: {
@@ -24,7 +28,34 @@ export function ConnectionForm() {
     }
   });
 
-  const onSubmit = () => setSubmitted(true);
+  const onSubmit = async (values: ConnectionValues) => {
+    setSubmitting(true);
+    setSubmitError("");
+
+    try {
+      const response = await fetch("/api/connections", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(values)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message ?? "Connection submission failed.");
+      }
+
+      setSubmissionMode(data.status === "saved" ? "live" : "mock");
+      setServerMessage(data.message ?? "Connection saved.");
+      setSubmitted(true);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Connection submission failed.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <Card className="max-w-3xl">
@@ -34,8 +65,11 @@ export function ConnectionForm() {
             <HeartHandshake className="h-10 w-10 text-primary" />
             <h2 className="mt-5 font-display text-3xl">Connection submitted</h2>
             <p className="mt-3 text-base leading-7 text-muted-foreground">
-              If the other person submits you too, Friends First can release contact details after consent review.
+              {submissionMode === "live"
+                ? "Your connection was saved. If the other person submits you too, Friends First can release contact details after consent review."
+                : "This route is wired, but no live Supabase project is configured in the local environment yet."}
             </p>
+            <p className="mt-3 text-sm text-muted-foreground">{serverMessage}</p>
           </div>
         ) : (
           <form className="space-y-5" onSubmit={form.handleSubmit(onSubmit)}>
@@ -65,7 +99,10 @@ export function ConnectionForm() {
                 ) : null}
               </span>
             </label>
-            <Button type="submit">Submit connection</Button>
+            {submitError ? <p className="text-sm text-primary">{submitError}</p> : null}
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Submitting..." : "Submit connection"}
+            </Button>
           </form>
         )}
       </CardContent>
@@ -90,4 +127,3 @@ function Field({
     </div>
   );
 }
-
